@@ -16,15 +16,27 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Groq AI チャット</title>
+    <!-- Markdown変換ライブラリ marked.js を読み込み -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; max-width: 600px; margin: 0 auto; }
+        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; max-width: 650px; margin: 0 auto; }
         h1 { text-align: center; color: #333; }
         .chat-box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); min-height: 300px; margin-bottom: 20px; }
-        .msg { margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; line-height: 1.5; font-size: 0.95em; }
-        .user { background: #e3f2fd; border-left: 4px solid #2196f3; }
+        .msg { margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; line-height: 1.6; font-size: 0.95em; }
+        .user { background: #e3f2fd; border-left: 4px solid #2196f3; white-space: pre-wrap; }
         .ai { background: #f1f8e9; border-left: 4px solid #8bc34a; }
         .error-msg { background: #ffebee; border-left: 4px solid #f44336; color: #c62828; }
         .speaker { font-weight: bold; margin-bottom: 4px; font-size: 0.85em; color: #555; }
+        
+        /* AIの回答内の装飾スタイリング */
+        .markdown-body p { margin: 0 0 8px 0; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin: 12px 0 6px 0; font-size: 1.1em; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+        .markdown-body ul, .markdown-body ol { margin: 4px 0 8px 20px; padding: 0; }
+        .markdown-body code { background: #e8e8e8; padding: 2px 5px; border-radius: 4px; font-family: monospace; }
+        .markdown-body pre { background: #2d2d2d; color: #fff; padding: 10px; border-radius: 6px; overflow-x: auto; }
+        .markdown-body pre code { background: none; color: inherit; padding: 0; }
+
         .form-box { display: flex; gap: 10px; }
         input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1em; }
         button { padding: 12px 20px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
@@ -45,7 +57,11 @@ HTML_TEMPLATE = """
         {% for chat in history %}
             <div class="msg {{ chat.role }}">
                 <div class="speaker">{{ chat.speaker }}</div>
-                <div>{{ chat.text }}</div>
+                {% if chat.role == 'ai' %}
+                    <div class="markdown-body" data-raw="{{ chat.text }}"></div>
+                {% else %}
+                    <div>{{ chat.text }}</div>
+                {% endif %}
             </div>
         {% endfor %}
     </div>
@@ -56,6 +72,14 @@ HTML_TEMPLATE = """
     </form>
 
     <script>
+        // AIの返答メッセージをMarkdown表示に変換
+        document.querySelectorAll('.markdown-body').forEach(el => {
+            const rawText = el.getAttribute('data-raw');
+            if (rawText) {
+                el.innerHTML = marked.parse(rawText);
+            }
+        });
+
         function preventDoubleSubmit(form) {
             const btn = document.getElementById('submitBtn');
             const input = document.getElementById('msgInput');
@@ -85,14 +109,12 @@ def chat():
             try:
                 client = Groq(api_key=api_key)
                 
-                # 💡 音声AI（whisper）やガードモデル等の非チャット用を除外するフィルタ
                 models_list = client.models.list()
                 chat_models = [
                     m.id for m in models_list.data 
                     if not any(x in m.id.lower() for x in ["whisper", "guard", "orpheus", "audio", "tts", "stt"])
                 ]
                 
-                # 優先して使用したい最新チャットモデル群
                 preferred = [
                     "llama-3.3-70b-versatile",
                     "llama-3.1-8b-instant",
@@ -105,7 +127,6 @@ def chat():
                 
                 selected_model = next((p for p in preferred if p in chat_models), None)
                 
-                # 候補にない場合でもチャット用モデルの中から自動選択
                 if not selected_model and chat_models:
                     selected_model = chat_models[0]
 
