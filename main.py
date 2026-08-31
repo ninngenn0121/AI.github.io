@@ -5,7 +5,6 @@ from groq import Groq
 app = Flask(__name__)
 
 api_key = os.environ.get("GROQ_API_KEY")
-MODEL_NAME = "llama3-8b-8192"
 
 chat_history = []
 SYSTEM_PROMPT = "あなたはフレンドリーで親しみやすいAIアシスタントです。日本語で丁寧に分かりやすく回答してください。"
@@ -85,15 +84,29 @@ def chat():
             
             try:
                 client = Groq(api_key=api_key)
+                
+                # 💡【重要】現在Groqで使えるモデル一覧を自動取得
+                models_list = client.models.list()
+                available_models = [m.id for m in models_list.data]
+                
+                # 安定しているモデル名を優先的に探す
+                preferred = ["gemma2-9b-it", "mixtral-8x7b-32768", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+                selected_model = next((p for p in preferred if p in available_models), None)
+                
+                # 優先モデルが無ければ、取得した中で一番最初のモデルを強制使用
+                if not selected_model and available_models:
+                    selected_model = available_models[0]
+
                 response = client.chat.completions.create(
-                    model=MODEL_NAME,
+                    model=selected_model,
                     messages=[
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": user_msg}
                     ]
                 )
                 ai_reply = response.choices[0].message.content
-                chat_history.append({"speaker": "🤖 AI", "text": ai_reply, "role": "ai"})
+                # どのモデルが選ばれたか分かるように表示
+                chat_history.append({"speaker": f"🤖 AI ({selected_model})", "text": ai_reply, "role": "ai"})
             except Exception as e:
                 chat_history.append({"speaker": "⚠️ システム", "text": f"エラーが発生しました: {e}", "role": "error-msg"})
                 
