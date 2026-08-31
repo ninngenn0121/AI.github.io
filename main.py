@@ -6,7 +6,7 @@ from google import genai
 api_key = os.environ.get("ARUPAKA_KEY")
 client = genai.Client(api_key=api_key)
 
-MODEL_NAME = "gemini-2.5-flash"
+MODEL_NAME = "gemini-3.6-flash"
 
 # AIのキャラクター設定
 SYSTEM_PROMPT_A = "あなたはポジティブで元気なAIロボットです。短く返答してください。"
