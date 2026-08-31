@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template_string, request
+from flask import Flask, render_template_string, request, redirect, url_for
 from google import genai
 
 app = Flask(__name__)
@@ -8,7 +8,7 @@ app = Flask(__name__)
 api_key = os.environ.get("ARUPAKA_KEY")
 MODEL_NAME = "gemini-2.5-flash"
 
-# 会話履歴を一時的に保持するメモリ上のリスト
+# 会話履歴を保持するリスト
 chat_history = []
 
 SYSTEM_PROMPT = "あなたはフレンドリーで親しみやすいAIアシスタントです。丁寧に分かりやすく回答してください。"
@@ -66,35 +66,39 @@ def index():
         return "", 200
     return render_template_string(HTML_TEMPLATE, history=chat_history)
 
-@app.route("/chat", methods=["POST"])
+@app.route("/chat", methods=["GET", "POST"])
 def chat():
-    user_msg = request.form.get("message", "").strip()
-    
-    if user_msg and api_key:
-        # ユーザーの発言を追加
-        chat_history.append({"speaker": "👤 あなた", "text": user_msg, "role": "user"})
+    if request.method == "POST":
+        user_msg = request.form.get("message", "").strip()
         
-        try:
-            client = genai.Client(api_key=api_key)
-            # AIへ送信して返答を取得
-            response = client.models.generate_content(
-                model=MODEL_NAME,
-                contents=user_msg,
-                config={"system_instruction": SYSTEM_PROMPT}
-            )
-            ai_reply = response.text
-            # AIの発言を追加
-            chat_history.append({"speaker": "🤖 AI", "text": ai_reply, "role": "ai"})
-        except Exception as e:
-            chat_history.append({"speaker": "⚠️ エラー", "text": f"返答を取得できませんでした: {e}", "role": "ai"})
+        if user_msg and api_key:
+            # ユーザーの発言を追加
+            chat_history.append({"speaker": "👤 あなた", "text": user_msg, "role": "user"})
             
-    return render_template_string(HTML_TEMPLATE, history=chat_history)
+            try:
+                client = genai.Client(api_key=api_key)
+                # AIへ送信して返答を取得
+                response = client.models.generate_content(
+                    model=MODEL_NAME,
+                    contents=user_msg,
+                    config={"system_instruction": SYSTEM_PROMPT}
+                )
+                ai_reply = response.text
+                # AIの発言を追加
+                chat_history.append({"speaker": "🤖 AI", "text": ai_reply, "role": "ai"})
+            except Exception as e:
+                chat_history.append({"speaker": "⚠️ エラー", "text": f"返答を取得できませんでした: {e}", "role": "ai"})
+                
+        return redirect(url_for("index"))
+    
+    # GETでアクセスされた場合はTOPへ戻す
+    return redirect(url_for("index"))
 
 @app.route("/clear")
 def clear():
     """チャット履歴のリセット"""
     chat_history.clear()
-    return render_template_string(HTML_TEMPLATE, history=chat_history)
+    return redirect(url_for("index"))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
