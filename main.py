@@ -32,6 +32,7 @@ HTML_TEMPLATE = """
         input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1em; }
         button { padding: 12px 20px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
         button:hover { background: #0056b3; }
+        button:disabled { background: #cccccc; cursor: not-allowed; }
         .clear-btn { display: block; text-align: right; margin-bottom: 10px; color: #888; text-decoration: none; font-size: 0.85em; }
     </style>
 </head>
@@ -52,10 +53,23 @@ HTML_TEMPLATE = """
         {% endfor %}
     </div>
 
-    <form action="/chat" method="post" class="form-box">
-        <input type="text" name="message" placeholder="メッセージを入力..." required autofocus>
-        <button type="submit">送信</button>
+    <form action="/chat" method="post" class="form-box" onsubmit="preventDoubleSubmit(this)">
+        <input type="text" id="msgInput" name="message" placeholder="メッセージを入力..." required autofocus>
+        <button type="submit" id="submitBtn">送信</button>
     </form>
+
+    <script>
+        function preventDoubleSubmit(form) {
+            const btn = document.getElementById('submitBtn');
+            const input = document.getElementById('msgInput');
+            
+            // ボタンを無効化してテキストを変更
+            btn.disabled = true;
+            btn.innerText = '送信中...';
+            // 入力欄も編集不可にする
+            input.readOnly = true;
+        }
+    </script>
 </body>
 </html>
 """
@@ -91,7 +105,6 @@ def chat():
                 
         return redirect(url_for("index"))
     
-    # GETでアクセスされた場合はTOPへ戻す
     return redirect(url_for("index"))
 
 @app.route("/clear")
