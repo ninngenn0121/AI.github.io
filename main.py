@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 # Render環境変数からAPIキーを取得
 api_key = os.environ.get("ARUPAKA_KEY")
-MODEL_NAME = "gemini-1.5-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 # 会話履歴を保持するリスト
 chat_history = []
@@ -27,6 +27,7 @@ HTML_TEMPLATE = """
         .msg { margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; line-height: 1.5; font-size: 0.95em; }
         .user { background: #e3f2fd; border-left: 4px solid #2196f3; }
         .ai { background: #f1f8e9; border-left: 4px solid #8bc34a; }
+        .error-msg { background: #ffebee; border-left: 4px solid #f44336; color: #c62828; }
         .speaker { font-weight: bold; margin-bottom: 4px; font-size: 0.85em; color: #555; }
         .form-box { display: flex; gap: 10px; }
         input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1em; }
@@ -62,11 +63,8 @@ HTML_TEMPLATE = """
         function preventDoubleSubmit(form) {
             const btn = document.getElementById('submitBtn');
             const input = document.getElementById('msgInput');
-            
-            // ボタンを無効化してテキストを変更
             btn.disabled = true;
             btn.innerText = '送信中...';
-            // 入力欄も編集不可にする
             input.readOnly = true;
         }
     </script>
@@ -86,22 +84,24 @@ def chat():
         user_msg = request.form.get("message", "").strip()
         
         if user_msg and api_key:
-            # ユーザーの発言を追加
             chat_history.append({"speaker": "👤 あなた", "text": user_msg, "role": "user"})
             
             try:
                 client = genai.Client(api_key=api_key)
-                # AIへ送信して返答を取得
                 response = client.models.generate_content(
                     model=MODEL_NAME,
                     contents=user_msg,
                     config={"system_instruction": SYSTEM_PROMPT}
                 )
                 ai_reply = response.text
-                # AIの発言を追加
                 chat_history.append({"speaker": "🤖 AI", "text": ai_reply, "role": "ai"})
             except Exception as e:
-                chat_history.append({"speaker": "⚠️ エラー", "text": f"返答を取得できませんでした: {e}", "role": "ai"})
+                err_str = str(e)
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                    msg = "⚠️ 本日の無料利用上限（Quota）に達しました。時間を置くか、新しいAPIキーを設定してください。"
+                else:
+                    msg = f"⚠️ エラーが発生しました: {err_str}"
+                chat_history.append({"speaker": "⚠️ システム", "text": msg, "role": "error-msg"})
                 
         return redirect(url_for("index"))
     
@@ -109,7 +109,6 @@ def chat():
 
 @app.route("/clear")
 def clear():
-    """チャット履歴のリセット"""
     chat_history.clear()
     return redirect(url_for("index"))
 
