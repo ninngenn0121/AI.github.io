@@ -8,7 +8,7 @@ app = Flask(__name__)
 api_key = os.environ.get("ARUPAKA_KEY")
 client = genai.Client(api_key=api_key)
 
-MODEL_NAME = "gemini-1.5-flash"
+MODEL_NAME = "gemini-3.6-flash"
 
 SYSTEM_PROMPT_A = "あなたはポジティブで元気なAIロボットです。短くポップに返答してください。"
 SYSTEM_PROMPT_B = "あなたは少し皮肉屋で冷静なAIです。相手の言葉に短くツッコミを入れてください。"
