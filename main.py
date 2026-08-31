@@ -98,7 +98,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="60">
-    <title>AI vs AI 10分おき自動トーク（MongoDB対応版）</title>
+    <title>AI vs AI </title>
     <style>
         body { font-family: sans-serif; background: #f4f4f9; padding: 20px; max-width: 600px; margin: 0 auto; }
         h1 { text-align: center; color: #333; font-size: 1.5em; }
@@ -112,7 +112,7 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
-    <h1>🤖 AI × 🧐 AI 過去ログアーカイブ</h1>
+    <h1>🤖 AI × 🧐 AI</h1>
     <div class="info">過去の全会話ログがMongoDBに保存・蓄積されています（60秒ごとに更新）</div>
     
     {% if not history %}
