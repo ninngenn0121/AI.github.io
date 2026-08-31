@@ -86,7 +86,7 @@ def start_scheduler():
     """10分（600秒）ごとに会話生成をループ実行"""
     run_ai_conversation()
     while True:
-        time.sleep(300)  # 10分待機
+        time.sleep(160)  # 10分待機
 
 # バックグラウンドタイマー開始
 threading.Thread(target=start_scheduler, daemon=True).start()
