@@ -20,28 +20,27 @@ chat_collection = None
 
 if mongo_uri:
     try:
-        db_client = MongoClient(mongo_uri)
-        # 「aidb」というデータベースの「logs」コレクションを使用
+        db_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
         db = db_client["aidb"]
         chat_collection = db["logs"]
-        print("MongoDBへの接続に成功しました！")
+        print("MongoDBへの接続設定が完了しました！")
     except Exception as e:
-        print(f"MongoDB接続エラー: {e}")
+        print(f"MongoDB初期化エラー: {e}")
 
 SYSTEM_PROMPT_A = "あなたはポジティブで元気なAIロボットです。短く返答してください。"
 SYSTEM_PROMPT_B = "あなたは少し皮肉屋で冷静なAIです。相手の言葉に短くツッコミを入れてください。"
 
 def run_ai_conversation():
-    """10分ごとに自動実行され、会話を生成してMongoDBに保存する関数"""
+    """AI会話生成 & MongoDB保存処理"""
     if not api_key:
-        print("API KEYが設定されていません。")
-        return
+        print("エラー: ARUPAKA_KEY が設定されていません。")
+        return False
 
     try:
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] 自動会話生成スタート...")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] 会話生成スタート...")
         client = genai.Client(api_key=api_key)
         
-        current_message = "やあ！最近何か面白いことあった？"
+        current_message = "やあ！今日はどんな楽しいことする？"
         new_logs = []
         new_logs.append({"speaker": "🤖 AI_A", "text": current_message, "css_class": "ai-a"})
 
@@ -54,7 +53,7 @@ def run_ai_conversation():
         reply_b = response_b.text
         new_logs.append({"speaker": "🧐 AI_B", "text": reply_b, "css_class": "ai-b"})
 
-        time.sleep(2)
+        time.sleep(1)
 
         # AI_Aの返答
         response_a = client.models.generate_content(
@@ -72,21 +71,24 @@ def run_ai_conversation():
             "created_at": datetime.now()
         }
 
-        # MongoDBにデータを保存
+        # MongoDBに保存
         if chat_collection is not None:
             chat_collection.insert_one(doc)
-            print(f"[{timestamp}] 会話データをMongoDBに保存しました！")
+            print(f"[{timestamp}] 会話データをMongoDBに正常保存しました！")
         else:
-            print("MongoDBに接続されていないため、保存をスキップしました。")
+            print("警告: MongoDBコレクションが準備できていません。")
+
+        return True
 
     except Exception as e:
-        print(f"自動会話エラー: {e}")
+        print(f"会話生成エラー: {e}")
+        return False
 
 def start_scheduler():
-    """10分（600秒）ごとに会話生成をループ実行"""
-    run_ai_conversation()
+    """5分（300秒）ごとの自動実行タイマー"""
     while True:
-        time.sleep(160)  # 10分待機
+        time.sleep(300)
+        run_ai_conversation()
 
 # バックグラウンドタイマー開始
 threading.Thread(target=start_scheduler, daemon=True).start()
@@ -98,7 +100,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="60">
-    <title>AI vs AI </title>
+    <title>AI vs AI 過去ログアーカイブ</title>
     <style>
         body { font-family: sans-serif; background: #f4f4f9; padding: 20px; max-width: 600px; margin: 0 auto; }
         h1 { text-align: center; color: #333; font-size: 1.5em; }
@@ -109,14 +111,17 @@ HTML_TEMPLATE = """
         .ai-a { background: #e3f2fd; border-left: 4px solid #2196f3; }
         .ai-b { background: #ffebee; border-left: 4px solid #f44336; }
         .speaker { font-weight: bold; margin-bottom: 3px; font-size: 0.85em; }
+        .btn { display: block; width: 100%; text-align: center; padding: 10px; background: #007bff; color: white; border-radius: 6px; text-decoration: none; margin-bottom: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>🤖 AI × 🧐 AI　（アルパカ:五分ごとに更新来るからよろしく。 ）</h1>
-    <div class="info">（60秒ごとに更新）</div>
+    <h1>🤖 AI × 🧐 AI 過去ログアーカイブ</h1>
+    <div class="info">5分ごとに自動トーク（画面は60秒ごとに更新）</div>
     
+    <a href="/generate" class="btn">⚡ 今すぐAIに喋らせる（テストボタン）</a>
+
     {% if not history %}
-        <div class="session">ログを取得中、または会話データがまだありません...</div>
+        <div class="session">まだ会話データがありません。「今すぐAIに喋らせる」を押すか少し待ってみてください。</div>
     {% endif %}
 
     {% for session in history %}
@@ -140,7 +145,6 @@ def index():
         return "", 200
 
     history = []
-    # MongoDBから新しい順に過去30件の会話を取得
     if chat_collection is not None:
         try:
             records = chat_collection.find().sort("created_at", -1).limit(30)
@@ -149,6 +153,12 @@ def index():
             print(f"MongoDB取得エラー: {e}")
 
     return render_template_string(HTML_TEMPLATE, history=history)
+
+@app.route("/generate")
+def force_generate():
+    """手動で会話を1発生成するテスト用ルート"""
+    run_ai_conversation()
+    return '<script>location.href="/";</script>'
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
