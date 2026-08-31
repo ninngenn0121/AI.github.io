@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 # Render環境変数からAPIキーを取得
 api_key = os.environ.get("ARUPAKA_KEY")
-MODEL_NAME = "gemini-2.5-flash"
+MODEL_NAME = "gemini-3.6-flash"
 
 # 会話履歴を保持するリスト
 chat_history = []
