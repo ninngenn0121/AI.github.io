@@ -1,17 +1,14 @@
 import os
 from flask import Flask, render_template_string, request, redirect, url_for
-from google import genai
+from groq import Groq
 
 app = Flask(__name__)
 
-# Render環境変数からAPIキーを取得
-api_key = os.environ.get("ARUPAKA_KEY")
-MODEL_NAME = "gemini-2.0-flash"
+api_key = os.environ.get("GROQ_API_KEY")
+MODEL_NAME = "llama-3.3-70b-versatile"
 
-# 会話履歴を保持するリスト
 chat_history = []
-
-SYSTEM_PROMPT = "あなたはフレンドリーで親しみやすいAIアシスタントです。丁寧に分かりやすく回答してください。"
+SYSTEM_PROMPT = "あなたはフレンドリーで親しみやすいAIアシスタントです。日本語で丁寧に分かりやすく回答してください。"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -19,7 +16,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI チャット</title>
+    <title>Groq AI チャット</title>
     <style>
         body { font-family: sans-serif; background: #f4f4f9; padding: 20px; max-width: 600px; margin: 0 auto; }
         h1 { text-align: center; color: #333; }
@@ -38,7 +35,7 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
-    <h1>🤖 AI チャット</h1>
+    <h1>⚡ Groq AI チャット</h1>
     <a href="/clear" class="clear-btn">🗑️ 会話をリセット</a>
 
     <div class="chat-box">
@@ -87,21 +84,18 @@ def chat():
             chat_history.append({"speaker": "👤 あなた", "text": user_msg, "role": "user"})
             
             try:
-                client = genai.Client(api_key=api_key)
-                response = client.models.generate_content(
+                client = Groq(api_key=api_key)
+                response = client.chat.completions.create(
                     model=MODEL_NAME,
-                    contents=user_msg,
-                    config={"system_instruction": SYSTEM_PROMPT}
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_msg}
+                    ]
                 )
-                ai_reply = response.text
+                ai_reply = response.choices[0].message.content
                 chat_history.append({"speaker": "🤖 AI", "text": ai_reply, "role": "ai"})
             except Exception as e:
-                err_str = str(e)
-                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                    msg = "⚠️ 本日の無料利用上限（Quota）に達しました。時間を置くか、新しいAPIキーを設定してください。"
-                else:
-                    msg = f"⚠️ エラーが発生しました: {err_str}"
-                chat_history.append({"speaker": "⚠️ システム", "text": msg, "role": "error-msg"})
+                chat_history.append({"speaker": "⚠️ システム", "text": f"エラーが発生しました: {e}", "role": "error-msg"})
                 
         return redirect(url_for("index"))
     
