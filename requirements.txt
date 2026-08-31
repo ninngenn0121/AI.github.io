@@ -1,4 +1,2 @@
 google-genai
 flask
-pymongo
-dnspython
