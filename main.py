@@ -5,7 +5,7 @@ from groq import Groq
 app = Flask(__name__)
 
 api_key = os.environ.get("GROQ_API_KEY")
-MODEL_NAME = "llama-3.1-8b-instant"
+MODEL_NAME = "llama3-8b-8192"
 
 chat_history = []
 SYSTEM_PROMPT = "あなたはフレンドリーで親しみやすいAIアシスタントです。日本語で丁寧に分かりやすく回答してください。"
