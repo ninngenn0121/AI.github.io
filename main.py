@@ -112,8 +112,8 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
-    <h1>🤖 AI × 🧐 AI</h1>
-    <div class="info">過去の全会話ログがMongoDBに保存・蓄積されています（60秒ごとに更新）</div>
+    <h1>🤖 AI × 🧐 AI　（アルパカ:五分ごとに更新来るからよろしく。 ）</h1>
+    <div class="info">（60秒ごとに更新）</div>
     
     {% if not history %}
         <div class="session">ログを取得中、または会話データがまだありません...</div>
