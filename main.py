@@ -85,17 +85,29 @@ def chat():
             try:
                 client = Groq(api_key=api_key)
                 
-                # 💡【重要】現在Groqで使えるモデル一覧を自動取得
+                # 💡 音声AI（whisper）やガードモデル等の非チャット用を除外するフィルタ
                 models_list = client.models.list()
-                available_models = [m.id for m in models_list.data]
+                chat_models = [
+                    m.id for m in models_list.data 
+                    if not any(x in m.id.lower() for x in ["whisper", "guard", "orpheus", "audio", "tts", "stt"])
+                ]
                 
-                # 安定しているモデル名を優先的に探す
-                preferred = ["gemma2-9b-it", "mixtral-8x7b-32768", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
-                selected_model = next((p for p in preferred if p in available_models), None)
+                # 優先して使用したい最新チャットモデル群
+                preferred = [
+                    "llama-3.3-70b-versatile",
+                    "llama-3.1-8b-instant",
+                    "openai/gpt-oss-120b",
+                    "openai/gpt-oss-20b",
+                    "qwen/qwen3.6-27b",
+                    "gemma2-9b-it",
+                    "mixtral-8x7b-32768"
+                ]
                 
-                # 優先モデルが無ければ、取得した中で一番最初のモデルを強制使用
-                if not selected_model and available_models:
-                    selected_model = available_models[0]
+                selected_model = next((p for p in preferred if p in chat_models), None)
+                
+                # 候補にない場合でもチャット用モデルの中から自動選択
+                if not selected_model and chat_models:
+                    selected_model = chat_models[0]
 
                 response = client.chat.completions.create(
                     model=selected_model,
@@ -105,7 +117,6 @@ def chat():
                     ]
                 )
                 ai_reply = response.choices[0].message.content
-                # どのモデルが選ばれたか分かるように表示
                 chat_history.append({"speaker": f"🤖 AI ({selected_model})", "text": ai_reply, "role": "ai"})
             except Exception as e:
                 chat_history.append({"speaker": "⚠️ システム", "text": f"エラーが発生しました: {e}", "role": "error-msg"})
