@@ -6,14 +6,13 @@ app = Flask(__name__)
 
 # Renderの環境変数から API KEY (ARUPAKA_KEY) を取得
 api_key = os.environ.get("ARUPAKA_KEY")
-client = genai.Client(api_key=api_key)
 
-MODEL_NAME = "gemini-3.6-flash"
+# 最も安定している gemini-1.5-flash を指定
+MODEL_NAME = "gemini-1.5-flash"
 
-SYSTEM_PROMPT_A = "あなたはポジティブで元気なAIロボットです。短くポップに返答してください。"
+SYSTEM_PROMPT_A = "あなたはポジティブで元気なAIロボットです。短く返答してください。"
 SYSTEM_PROMPT_B = "あなたは少し皮肉屋で冷静なAIです。相手の言葉に短くツッコミを入れてください。"
 
-# HTMLテンプレート（簡易チャットデザイン）
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ja">
@@ -49,40 +48,35 @@ HTML_TEMPLATE = """
 
 @app.route("/")
 def index():
+    if not api_key:
+        return "エラー: ARUPAKA_KEY が設定されていません。RenderのEnvironmentを確認してください。", 500
+
+    client = genai.Client(api_key=api_key)
     chat_logs = []
-    chat_history_a = []
-    chat_history_b = []
 
     current_message = "やあ！今日は何をして遊ぶ？"
     chat_logs.append({"speaker": "🤖 AI_A", "text": current_message, "css_class": "ai-a"})
 
-    # 交互に4ターン会話
-    for _ in range(4):
-        # AI_B
-        chat_history_b.append({"role": "user", "parts": [{"text": current_message}]})
-        response_b = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=chat_history_b,
-            config={"system_instruction": SYSTEM_PROMPT_B}
-        )
-        reply_b = response_b.text
-        chat_logs.append({"speaker": "🧐 AI_B", "text": reply_b, "css_class": "ai-b"})
-        chat_history_b.append({"role": "model", "parts": [{"text": reply_b}]})
+    # AI_Bの返答
+    response_b = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=current_message,
+        config={"system_instruction": SYSTEM_PROMPT_B}
+    )
+    reply_b = response_b.text
+    chat_logs.append({"speaker": "🧐 AI_B", "text": reply_b, "css_class": "ai-b"})
 
-        # AI_A
-        chat_history_a.append({"role": "user", "parts": [{"text": reply_b}]})
-        response_a = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=chat_history_a,
-            config={"system_instruction": SYSTEM_PROMPT_A}
-        )
-        current_message = response_a.text
-        chat_logs.append({"speaker": "🤖 AI_A", "text": current_message, "css_class": "ai-a"})
-        chat_history_a.append({"role": "model", "parts": [{"text": current_message}]})
+    # AI_Aの返答
+    response_a = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=reply_b,
+        config={"system_instruction": SYSTEM_PROMPT_A}
+    )
+    reply_a = response_a.text
+    chat_logs.append({"speaker": "🤖 AI_A", "text": reply_a, "css_class": "ai-a"})
 
     return render_template_string(HTML_TEMPLATE, logs=chat_logs)
 
 if __name__ == "__main__":
-    # Renderが指定するポート番号で起動
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
